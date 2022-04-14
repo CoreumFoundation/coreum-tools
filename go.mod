@@ -1,4 +1,4 @@
-module coreum-build-tools
+module github.com/CoreumFoundation/coreum-build-tools
 
 go 1.17
 
