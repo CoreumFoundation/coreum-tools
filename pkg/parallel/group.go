@@ -2,12 +2,12 @@ package parallel
 
 import (
 	"context"
-	"coreum-build-tools/pkg/logger"
 	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
+	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

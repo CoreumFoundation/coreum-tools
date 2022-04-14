@@ -2,10 +2,10 @@ package parallel
 
 import (
 	"context"
-	"coreum-build-tools/pkg/logger"
 	"fmt"
 	"runtime/debug"
 
+	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
 	"go.uber.org/zap"
 )
 

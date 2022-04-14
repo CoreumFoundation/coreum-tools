@@ -2,10 +2,10 @@ package parallel
 
 import (
 	"context"
-	"coreum-build-tools/pkg/logger"
 	"errors"
 	"testing"
 
+	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
 	"github.com/stretchr/testify/require"
 )
 
