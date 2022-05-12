@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

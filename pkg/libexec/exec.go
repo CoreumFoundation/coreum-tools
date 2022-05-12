@@ -10,8 +10,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/parallel"
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/parallel"
 )
 
 type cmdError struct {

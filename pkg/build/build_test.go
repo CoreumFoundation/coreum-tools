@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/ioc"
+	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

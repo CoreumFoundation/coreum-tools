@@ -9,9 +9,9 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/ioc"
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/parallel"
+	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/parallel"
 	"go.uber.org/zap"
 )
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	pkgA "github.com/CoreumFoundation/coreum-build-tools/pkg/ioc/test/a/pkg"
-	pkgB "github.com/CoreumFoundation/coreum-build-tools/pkg/ioc/test/b/pkg"
+	pkgA "github.com/CoreumFoundation/coreum-tools/pkg/ioc/test/a/pkg"
+	pkgB "github.com/CoreumFoundation/coreum-tools/pkg/ioc/test/b/pkg"
 	"github.com/stretchr/testify/assert"
 )
 
