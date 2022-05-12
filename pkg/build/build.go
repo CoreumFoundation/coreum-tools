@@ -109,10 +109,11 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 		queue := make(chan interface{})
 		done := make(chan struct{})
 		go worker(queue, done)
+	loop:
 		for _, d := range deps {
 			select {
 			case <-done:
-				break
+				break loop
 			case queue <- d:
 			}
 		}
