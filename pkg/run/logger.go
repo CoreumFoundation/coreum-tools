@@ -3,7 +3,7 @@ package run
 import (
 	"context"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 	"go.uber.org/zap"
 )
 

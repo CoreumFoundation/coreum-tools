@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/ioc"
+	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 )
 
 const maxStack = 100

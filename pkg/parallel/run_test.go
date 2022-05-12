@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 	"github.com/stretchr/testify/require"
 )
 
