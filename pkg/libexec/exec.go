@@ -8,6 +8,9 @@ import (
 	"os/exec"
 	"syscall"
 
+	"go.uber.org/zap"
+
+	"github.com/CoreumFoundation/coreum-build-tools/pkg/logger"
 	"github.com/CoreumFoundation/coreum-build-tools/pkg/parallel"
 )
 
@@ -37,6 +40,8 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 			// just to remove this dependency
 			cmd.Stdin = bytes.NewReader(nil)
 		}
+
+		logger.Get(ctx).Debug("Executing command", zap.Stringer("command", cmd))
 
 		if err := cmd.Start(); err != nil {
 			return err
