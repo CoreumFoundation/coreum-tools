@@ -2,12 +2,13 @@ package build
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 )
 
 type report map[int]string

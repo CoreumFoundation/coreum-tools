@@ -2,11 +2,12 @@ package parallel
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
 
 func panicWith(value interface{}) error {
@@ -14,7 +15,7 @@ func panicWith(value interface{}) error {
 }
 
 func TestPanicString(t *testing.T) {
-	ctx := logger.WithLogger(context.Background(), logger.New())
+	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
 	err := Run(ctx, func(ctx context.Context, spawn SpawnFn) error {
 		spawn("doomed", Fail, func(ctx context.Context) error {
 			return panicWith("oops")
@@ -30,7 +31,7 @@ func TestPanicString(t *testing.T) {
 }
 
 func TestPanicError(t *testing.T) {
-	ctx := logger.WithLogger(context.Background(), logger.New())
+	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
 	err := Run(ctx, func(ctx context.Context, spawn SpawnFn) error {
 		spawn("doomed", Fail, func(ctx context.Context) error {
 			return panicWith(errors.New("oops"))

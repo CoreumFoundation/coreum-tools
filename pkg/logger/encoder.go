@@ -328,7 +328,7 @@ func (c *console) AppendArray(marshaler zapcore.ArrayMarshaler) error {
 	defer subEncoder.buffer.Free()
 
 	if err := marshaler.MarshalLogArray(subEncoder); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	c.addComma()
@@ -343,7 +343,7 @@ func (c *console) AppendObject(marshaler zapcore.ObjectMarshaler) error {
 	defer subEncoder.buffer.Free()
 
 	if err := marshaler.MarshalLogObject(subEncoder); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	c.addComma()

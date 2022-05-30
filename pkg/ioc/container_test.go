@@ -1,13 +1,14 @@
 package ioc
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+
 	pkgA "github.com/CoreumFoundation/coreum-tools/pkg/ioc/test/a/pkg"
 	pkgB "github.com/CoreumFoundation/coreum-tools/pkg/ioc/test/b/pkg"
-	"github.com/stretchr/testify/assert"
 )
 
 type Shape interface {
