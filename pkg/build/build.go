@@ -2,12 +2,13 @@ package build
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 )
@@ -65,7 +66,7 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 					}
 					err = err2
 				} else {
-					err = fmt.Errorf("command panicked: %v", r)
+					err = errors.Errorf("command panicked: %v", r)
 				}
 				errChan <- err
 				close(errChan)
@@ -130,7 +131,7 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 	initDeps := make([]interface{}, 0, len(paths))
 	for _, p := range paths {
 		if e.commands[p] == nil {
-			return fmt.Errorf("build: command %s does not exist", p)
+			return errors.Errorf("build: command %s does not exist", p)
 		}
 		initDeps = append(initDeps, e.commands[p])
 	}
@@ -167,14 +168,14 @@ func Autocomplete(executor Executor) bool {
 }
 
 // Do receives configuration and runs commands
-func Do(ctx context.Context, name string, executor Executor) error {
+func Do(ctx context.Context, name string, paths []string, executor Executor) error {
 	if len(os.Args) == 1 {
 		if _, err := fmt.Fprintf(os.Stderr, help, name, os.Args[0]); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		return nil
 	}
-	return execute(ctx, os.Args[1:], executor)
+	return execute(ctx, paths, executor)
 }
 
 func execute(ctx context.Context, paths []string, executor Executor) error {

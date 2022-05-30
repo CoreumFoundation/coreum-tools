@@ -9,6 +9,12 @@ func OK(err error) {
 	}
 }
 
+// Bool panics if err is not nil, v is returned otherwise
+func Bool(v bool, err error) bool {
+	OK(err)
+	return v
+}
+
 // String panics if err is not nil, v is returned otherwise
 func String(v string, err error) string {
 	OK(err)

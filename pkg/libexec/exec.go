@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
@@ -44,7 +45,7 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 		logger.Get(ctx).Debug("Executing command", zap.Stringer("command", cmd))
 
 		if err := cmd.Start(); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		err := parallel.Run(ctx, func(ctx context.Context, spawn parallel.SpawnFn) error {
