@@ -167,14 +167,14 @@ func Autocomplete(executor Executor) bool {
 }
 
 // Do receives configuration and runs commands
-func Do(ctx context.Context, name string, executor Executor) error {
+func Do(ctx context.Context, name string, paths []string, executor Executor) error {
 	if len(os.Args) == 1 {
 		if _, err := fmt.Fprintf(os.Stderr, help, name, os.Args[0]); err != nil {
 			return err
 		}
 		return nil
 	}
-	return execute(ctx, os.Args[1:], executor)
+	return execute(ctx, paths, executor)
 }
 
 func execute(ctx context.Context, paths []string, executor Executor) error {
