@@ -2,7 +2,6 @@ package logger
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -19,7 +18,6 @@ import (
 const encoderName = "better-console"
 
 var bufPool = buffer.NewPool()
-var homeDir = must.String(os.UserHomeDir()) + "/"
 
 func init() {
 	must.OK(zap.RegisterEncoder(encoderName, func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
@@ -207,11 +205,7 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 	}
 
 	buf.AppendString("\n @ ")
-	file := entry.Caller.File
-	if strings.HasPrefix(file, homeDir) {
-		file = "~/" + file[len(homeDir):]
-	}
-	buf.AppendString(file)
+	buf.AppendString(entry.Caller.File)
 	buf.AppendByte(':')
 	buf.AppendInt(int64(entry.Caller.Line))
 	buf.AppendByte('\n')
@@ -440,7 +434,7 @@ func (c *console) appendError(field zapcore.Field) bool {
 				ind := "\n     " + c.indentation()
 				for _, frame := range stack {
 					c.buffer.AppendString(ind)
-					c.buffer.AppendString(strings.ReplaceAll(fmt.Sprintf("%+v", frame), homeDir, "~/"))
+					c.buffer.AppendString(string(must.Bytes(frame.MarshalText())))
 				}
 				return true
 			}
