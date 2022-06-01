@@ -33,9 +33,11 @@ func newConsoleEncoder(nested int) *console {
 }
 
 type console struct {
-	nested  int
-	element int
-	buffer  *buffer.Buffer
+	nested              int
+	element             int
+	skipErrorStackTrace bool
+	containsStackTrace  bool
+	buffer              *buffer.Buffer
 }
 
 func (c *console) AddArray(key string, marshaler zapcore.ArrayMarshaler) error {
@@ -169,8 +171,10 @@ func (c *console) Clone() zapcore.Encoder {
 	buf := bufPool.Get()
 	must.Any(buf.Write(c.buffer.Bytes()))
 	return &console{
-		nested: c.nested,
-		buffer: buf,
+		nested:              c.nested,
+		skipErrorStackTrace: c.skipErrorStackTrace,
+		containsStackTrace:  c.containsStackTrace,
+		buffer:              buf,
 	}
 }
 
@@ -190,6 +194,9 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 	}
 
 	subEncoder := newConsoleEncoder(0)
+	if entry.Level == zap.InfoLevel {
+		subEncoder.skipErrorStackTrace = true
+	}
 	defer subEncoder.buffer.Free()
 	for _, field := range fields {
 		if !subEncoder.appendError(field) {
@@ -210,7 +217,7 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 	buf.AppendInt(int64(entry.Caller.Line))
 	buf.AppendByte('\n')
 
-	if entry.Stack != "" {
+	if !c.containsStackTrace && !subEncoder.containsStackTrace && entry.Stack != "" {
 		buf.AppendString(entry.Stack)
 		buf.AppendByte('\n')
 	}
@@ -424,21 +431,30 @@ func (c *console) appendNil() {
 
 func (c *console) appendError(field zapcore.Field) bool {
 	if field.Type == zapcore.ErrorType {
+		c.addKey(field.Key)
 		err := field.Interface.(error)
-		errStack, ok := err.(stackTracer)
-		if ok {
-			stack := errStack.StackTrace()
-			if len(stack) > 0 {
-				c.addKey(field.Key)
-				c.buffer.AppendString(err.Error())
-				ind := "\n     " + c.indentation()
-				for _, frame := range stack {
-					c.buffer.AppendString(ind)
-					c.buffer.AppendString(string(must.Bytes(frame.MarshalText())))
+		if !c.skipErrorStackTrace {
+			errStack, ok := err.(stackTracer)
+			if ok {
+				stack := errStack.StackTrace()
+				if len(stack) > 0 {
+					c.buffer.AppendByte('"')
+					c.buffer.AppendString(err.Error())
+					c.buffer.AppendByte('"')
+					ind := "\n     " + c.indentation()
+					for _, frame := range stack {
+						c.buffer.AppendString(ind)
+						c.buffer.AppendString(string(must.Bytes(frame.MarshalText())))
+					}
+					c.containsStackTrace = true
+					return true
 				}
-				return true
 			}
 		}
+		c.buffer.AppendByte('"')
+		c.buffer.AppendString(err.Error())
+		c.buffer.AppendByte('"')
+		return true
 	}
 	return false
 }
