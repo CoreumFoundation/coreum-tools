@@ -55,7 +55,7 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 					return ctx.Err()
 				}
 				if err != nil {
-					return &cmdError{Err: err, Debug: cmd.String()}
+					return errors.WithStack(cmdError{Err: err, Debug: cmd.String()})
 				}
 				return nil
 			})
