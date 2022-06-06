@@ -185,12 +185,10 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 	buf.AppendByte(' ')
 	if entry.Message != "" {
 		buf.AppendString(entry.Message)
-		buf.AppendByte(' ')
 	}
 
 	if c.buffer.Len() > 0 {
 		must.Any(buf.Write(c.buffer.Bytes()))
-		buf.AppendString(", ")
 	}
 
 	subEncoder := newConsoleEncoder(0)
