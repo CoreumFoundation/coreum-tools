@@ -44,9 +44,14 @@ var ServiceDefaultConfig = Config{
 	Verbose: true,
 }
 
+var validFormats = map[Format]bool{
+	FormatConsole: true,
+	FormatJSON:    true,
+	FormatYAML:    true,
+}
+
 // ConfigureWithCLI configures logger based on CLI flags
 func ConfigureWithCLI(defaultConfig Config) Config {
-	var format string
 	flags := pflag.NewFlagSet("logger", pflag.ContinueOnError)
 	flags.ParseErrorsWhitelist.UnknownFlags = true
 	AddFlags(defaultConfig, flags)
@@ -57,8 +62,8 @@ func ConfigureWithCLI(defaultConfig Config) Config {
 
 	defaultConfig.Format = Format(must.String(flags.GetString("log-format")))
 	defaultConfig.Verbose = must.Bool(flags.GetBool("verbose"))
-	if defaultConfig.Format != FormatConsole && defaultConfig.Format != FormatJSON {
-		panic(errors.Errorf("incorrect logging format %s", format))
+	if !validFormats[defaultConfig.Format] {
+		panic(errors.Errorf("incorrect logging format %s", defaultConfig.Format))
 	}
 
 	return defaultConfig
