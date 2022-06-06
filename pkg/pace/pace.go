@@ -27,7 +27,7 @@ type paceImpl struct {
 	interval time.Duration
 	lastTick time.Time
 	repFn    ReporterFunc
-	ticker   *time.Ticker
+	timer    *time.Timer
 }
 
 func (p *paceImpl) Step(n int) {
@@ -39,7 +39,7 @@ func (p *paceImpl) resetValue() {
 }
 
 func (p *paceImpl) Pause() {
-	p.ticker.Stop()
+	p.timer.Stop()
 
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -73,7 +73,7 @@ func New(label string, interval time.Duration, repFn ReporterFunc) Pace {
 		interval: interval,
 		repFn:    repFn,
 		lastTick: time.Now(),
-		ticker:   time.NewTicker(interval),
+		timer:    time.NewTimer(interval),
 	}
 
 	go p.reportingLoop()
@@ -82,7 +82,7 @@ func New(label string, interval time.Duration, repFn ReporterFunc) Pace {
 }
 
 func (p *paceImpl) reportingLoop() {
-	for range p.ticker.C {
+	for range p.timer.C {
 		func() {
 			p.mux.Lock()
 			defer p.mux.Unlock()
@@ -90,6 +90,7 @@ func (p *paceImpl) reportingLoop() {
 
 			p.resetValue()
 			p.lastTick = time.Now()
+			p.timer.Reset(p.interval)
 		}()
 	}
 }
