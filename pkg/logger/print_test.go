@@ -77,9 +77,11 @@ func TestPrint(t *testing.T) {
 		zap.String("string2", "value2"), zap.Error(errors.New("this is error")))
 
 	log.Named("logger2").Info("This is message",
-		zap.Namespace("namespace"),
+		zap.Namespace("namespace1"),
 		zap.String("string1", "value1"),
-		zap.String("string2", "value2"))
+		zap.String("string2", "value2"),
+		zap.Namespace("namespace2"),
+		zap.Object("object3", object2{Field1: "stringValueLine1\nstringValueLine2\nstringValueLine3", Field2: 56}))
 
 	log.Error("This is error without error field, it should contain stack trace")
 	log.Error("This is error with error not containing stack trace so stack trace of log should be printed", zap.Error(stderr.New("error without stack trace")))

@@ -13,11 +13,14 @@ import (
 type Format string
 
 const (
-	// FormatConsole causes logs to be printed in human-readable form
+	// FormatConsole causes logs to be printed in console format delivered by zap
 	FormatConsole Format = "console"
 
-	// FormatJSON causes logs to be printed in JSON
+	// FormatJSON causes logs to be printed in JSON format delivered by zap
 	FormatJSON Format = "json"
+
+	// FormatYAML causes logs to be printed in YAML
+	FormatYAML Format = "yaml"
 )
 
 // Config stores configuration of the logger
@@ -31,7 +34,7 @@ type Config struct {
 
 // ToolDefaultConfig stores handy default configuration used by tools run manually by humans
 var ToolDefaultConfig = Config{
-	Format:  FormatConsole,
+	Format:  FormatYAML,
 	Verbose: false,
 }
 
