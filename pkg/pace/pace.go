@@ -2,6 +2,7 @@
 package pace
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -11,8 +12,8 @@ import (
 type Pace interface {
 	// Step increments the counter of pace.
 	Step(n int)
-	// Pause stops reporting until resumed, all steps continue to be counted.
-	Pause()
+	// Stop shutdowns reporting, emits a final report for the time passed since previous report.
+	Stop()
 }
 
 // ReporterFunc defines a function used to report current pace.
@@ -23,10 +24,10 @@ type paceImpl struct {
 
 	value    int64
 	label    string
-	paused   bool
 	interval time.Duration
 	lastTick time.Time
 	repFn    ReporterFunc
+	cancelFn func()
 	timer    *time.Timer
 }
 
@@ -38,16 +39,8 @@ func (p *paceImpl) resetValue() {
 	atomic.StoreInt64(&p.value, 0)
 }
 
-func (p *paceImpl) Pause() {
-	p.timer.Stop()
-
-	p.mux.Lock()
-	defer p.mux.Unlock()
-	p.report()
-
-	p.paused = true
-	p.resetValue()
-	p.lastTick = time.Now()
+func (p *paceImpl) Stop() {
+	p.cancelFn()
 }
 
 func (p *paceImpl) report() {
@@ -76,23 +69,41 @@ func New(label string, interval time.Duration, repFn ReporterFunc) Pace {
 		timer:    time.NewTimer(interval),
 	}
 
-	go p.reportingLoop()
+	paceCtx, cancelFn := context.WithCancel(context.Background())
+	p.cancelFn = cancelFn
+
+	go p.reportingLoop(paceCtx)
 
 	return p
 }
 
-func (p *paceImpl) reportingLoop() {
-	for range p.timer.C {
-		func() {
-			p.mux.Lock()
-			defer p.mux.Unlock()
-			p.report()
+func (p *paceImpl) reportingLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			p.timer.Stop()
 
-			p.resetValue()
-			p.lastTick = time.Now()
-			p.timer.Reset(p.interval)
-		}()
+			func() {
+				p.mux.RLock()
+				defer p.mux.RUnlock()
+				p.report()
+			}()
+
+			// exits the loop
+			return
+		case <-p.timer.C:
+			func() {
+				p.mux.Lock()
+				defer p.mux.Unlock()
+				p.report()
+
+				p.resetValue()
+				p.lastTick = time.Now()
+				p.timer.Reset(p.interval)
+			}()
+		}
 	}
+
 }
 
 func abs(v time.Duration) time.Duration {
