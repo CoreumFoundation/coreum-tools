@@ -7,9 +7,15 @@ import (
 
 func TestSimple(t *testing.T) {
 	var ticks int
+	var stopped bool
 
 	p := New("items", 100*time.Millisecond, func(_ string, _ time.Duration, value int) {
 		ticks += value
+
+		if stopped {
+			t.Fatalf("not expected to fire after stop")
+			t.FailNow()
+		}
 	})
 
 	go func() {
@@ -31,4 +37,12 @@ func TestSimple(t *testing.T) {
 		t.Fatalf("expeted ticks: 10, got: %d", ticks)
 		t.FailNow()
 	}
+
+	p.Stop()
+
+	time.Sleep(100 * time.Millisecond)
+
+	stopped = true
+
+	time.Sleep(200 * time.Millisecond)
 }
