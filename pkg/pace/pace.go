@@ -6,6 +6,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 // Pace is a an interface to register ticks, force reporting and pause/resume the meter.
@@ -20,15 +23,17 @@ type Pace interface {
 type ReporterFunc func(label string, timeframe time.Duration, value int)
 
 type paceImpl struct {
-	mux *sync.RWMutex
+	lastTickMux *sync.RWMutex
+	lastTick    time.Time
 
-	value    int64
 	label    string
 	interval time.Duration
-	lastTick time.Time
-	repFn    ReporterFunc
-	cancelFn func()
-	timer    *time.Timer
+	value    int64
+
+	reportFn      ReporterFunc
+	defaultLogger *zap.Logger
+	cancelFn      context.CancelFunc
+	timer         *time.Timer
 }
 
 func (p *paceImpl) Step(n int) {
@@ -49,27 +54,33 @@ func (p *paceImpl) report() {
 		timeframe = p.interval
 	}
 
-	p.repFn(p.label, timeframe, int(atomic.LoadInt64(&p.value)))
+	p.reportFn(p.label, timeframe, int(atomic.LoadInt64(&p.value)))
 }
 
-// New creates a new pace meter with provided label and reporting function.
+// New creates a new pace meter with provided label and optional reporting function.
 // All ticks (or steps) are aggregated in timeframes specified using interval.
-func New(label string, interval time.Duration, repFn ReporterFunc) Pace {
-	if repFn == nil {
-		panic("nil repFn provided")
-	}
-
+// If the reporting function was not provided, ZapReporter will be used as default.
+func New(ctx context.Context, label string, interval time.Duration, reportFn ...ReporterFunc) Pace {
 	p := &paceImpl{
-		mux: new(sync.RWMutex),
+		lastTickMux: new(sync.RWMutex),
+		lastTick:    time.Now(),
 
 		label:    label,
 		interval: interval,
-		repFn:    repFn,
-		lastTick: time.Now(),
-		timer:    time.NewTimer(interval),
+
+		timer: time.NewTimer(interval),
 	}
 
-	paceCtx, cancelFn := context.WithCancel(context.Background())
+	logger, _ := zap.NewProduction()
+	p.defaultLogger = logger.With(zap.String("label", p.label))
+
+	if len(reportFn) > 0 {
+		p.reportFn = reportFn[0]
+	} else {
+		p.reportFn = ZapReporter(p.defaultLogger)
+	}
+
+	paceCtx, cancelFn := context.WithCancel(ctx)
 	p.cancelFn = cancelFn
 
 	go p.reportingLoop(paceCtx)
@@ -78,14 +89,27 @@ func New(label string, interval time.Duration, repFn ReporterFunc) Pace {
 }
 
 func (p *paceImpl) reportingLoop(ctx context.Context) {
+	defer func() {
+		if v := recover(); v != nil {
+			if err, ok := v.(error); ok {
+				p.defaultLogger.With(zap.Error(err)).Warn("pace reportingLoop panicked")
+				return
+			}
+
+			p.defaultLogger.With(zap.Error(
+				errors.Errorf("error: %v", v),
+			)).Warn("pace reportingLoop panicked")
+		}
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
 			p.timer.Stop()
 
 			func() {
-				p.mux.RLock()
-				defer p.mux.RUnlock()
+				p.lastTickMux.RLock()
+				defer p.lastTickMux.RUnlock()
 				p.report()
 			}()
 
@@ -93,8 +117,8 @@ func (p *paceImpl) reportingLoop(ctx context.Context) {
 			return
 		case <-p.timer.C:
 			func() {
-				p.mux.Lock()
-				defer p.mux.Unlock()
+				p.lastTickMux.Lock()
+				defer p.lastTickMux.Unlock()
 				p.report()
 
 				p.resetValue()
