@@ -1,6 +1,7 @@
 package pace
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -9,14 +10,15 @@ func TestSimple(t *testing.T) {
 	var ticks int
 	var stopped bool
 
-	p := New("items", 100*time.Millisecond, func(_ string, _ time.Duration, value int) {
+	testReportingFn := func(_ string, _ time.Duration, value int) {
 		ticks += value
 
 		if stopped {
 			t.Fatalf("not expected to fire after stop")
 			t.FailNow()
 		}
-	})
+	}
+	p := New(context.Background(), "items", 100*time.Millisecond, testReportingFn)
 
 	go func() {
 		for i := 0; i < 10; i++ {
