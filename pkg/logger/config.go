@@ -34,7 +34,7 @@ type Config struct {
 
 // ToolDefaultConfig stores handy default configuration used by tools run manually by humans
 var ToolDefaultConfig = Config{
-	Format:  FormatYAML,
+	Format:  FormatConsole,
 	Verbose: false,
 }
 
