@@ -152,9 +152,15 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 	return nil
 }
 
-const help = `Build environment for %[1]s
-Put this to your .bashrc for autocompletion:
-complete -o nospace -C %[2]s %[2]s
+const help = `Crust tool is used to build and run all the applications needed for development and testing on Coreum blockchain
+
+Available commands:
+- setup Install all the tools required to develop our software
+- build	Builds all the required binaries
+- znet 	Tool used to spin up development environment running the same components which are used in production.
+- lint	Lints source code and checks that git status is clean
+- test  Runs unit tests
+- tidy 	Executes go mod tidy
 `
 
 // Autocomplete serves bash autocomplete functionality.
