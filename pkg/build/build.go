@@ -159,7 +159,7 @@ Available commands:
 - build	Builds all the required binaries
 - znet 	Tool used to spin up development environment running the same components which are used in production.
 - lint	Lints source code and checks that git status is clean
-- test  Runs unit and integration tests
+- test  Runs unit tests
 - tidy 	Executes go mod tidy
 `
 
