@@ -1,0 +1,28 @@
+name: ci
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: Go version used to build crust tool
+        run: go version
+      - name: Set up crust
+        run: |
+          cd ..
+          git clone https://github.com/CoreumFoundation/crust.git 
+          echo "$(pwd)/crust/bin" >> $GITHUB_PATH
+      - name: Lint and run unit tests
+        run: crust lint test --log-format=yaml
+
+      # Build and integration tests are not executed inside coreum-tools because this repo doesn't contain anything to test or build.
+      # Other repos have to import new version of coreum-tools to be affected and potential problems
+      # will be detected by CI in PRs created in those repos.
