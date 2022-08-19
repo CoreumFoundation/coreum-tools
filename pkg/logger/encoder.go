@@ -475,38 +475,39 @@ func (c *console) appendNil() {
 }
 
 func (c *console) appendError(field zapcore.Field) bool {
-	if field.Type == zapcore.ErrorType {
-		c.addKey(field.Key)
+	if field.Type != zapcore.ErrorType {
+		return false
+	}
 
-		ind := "\n" + c.indentation()
-		err := field.Interface.(error)
-		c.buffer.AppendString(ind)
-		c.buffer.AppendString("      msg: ")
-		c.buffer.AppendByte('"')
-		c.buffer.AppendString(err.Error())
-		c.buffer.AppendString("\"\n")
+	c.addKey(field.Key)
 
-		if !c.skipErrorStackTrace {
-			errStack, ok := err.(stackTracer)
-			if ok {
-				stack := errStack.StackTrace()
-				if len(stack) > 0 {
-					c.buffer.AppendString("      stack:")
-					for _, frame := range stack {
-						c.buffer.AppendString(ind)
-						c.buffer.AppendString("      - \"")
-						c.buffer.AppendString(string(must.Bytes(frame.MarshalText())))
-						c.buffer.AppendByte('"')
-					}
-					c.buffer.AppendByte('\n')
-					c.containsStackTrace = true
-					return true
+	ind := "\n" + c.indentation()
+	err := field.Interface.(error)
+	c.buffer.AppendString(ind)
+	c.buffer.AppendString("      msg: ")
+	c.buffer.AppendByte('"')
+	c.buffer.AppendString(err.Error())
+	c.buffer.AppendString("\"\n")
+
+	if !c.skipErrorStackTrace {
+		var errStack stackTracer
+		if errors.As(err, &errStack) {
+			stack := errStack.StackTrace()
+			if len(stack) > 0 {
+				c.buffer.AppendString("      stack:")
+				for _, frame := range stack {
+					c.buffer.AppendString(ind)
+					c.buffer.AppendString("      - \"")
+					c.buffer.AppendString(string(must.Bytes(frame.MarshalText())))
+					c.buffer.AppendByte('"')
 				}
+				c.buffer.AppendByte('\n')
+				c.containsStackTrace = true
+				return true
 			}
 		}
-		return true
 	}
-	return false
+	return true
 }
 
 func (c *console) appendComplex128(value complex128) {

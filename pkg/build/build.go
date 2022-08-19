@@ -15,6 +15,8 @@ import (
 
 const maxStack = 100
 
+var errReturn = errors.New("return")
+
 // CommandFunc represents executable command
 type CommandFunc func(ctx context.Context) error
 
@@ -53,63 +55,11 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 	stack := map[reflect.Value]bool{}
 	c := e.c.SubContainer()
 
-	errReturn := errors.New("return")
 	errChan := make(chan error, 1)
-	worker := func(queue <-chan interface{}, done chan<- struct{}) {
-		defer close(done)
-		defer func() {
-			if r := recover(); r != nil {
-				var err error
-				if err2, ok := r.(error); ok {
-					if err2 == errReturn {
-						return
-					}
-					err = err2
-				} else {
-					err = errors.Errorf("command panicked: %v", r)
-				}
-				errChan <- err
-				close(errChan)
-			}
-		}()
-		for {
-			select {
-			case <-ctx.Done():
-				errChan <- ctx.Err()
-				close(errChan)
-				return
-			case cmd, ok := <-queue:
-				if !ok {
-					return
-				}
-				cmdValue := reflect.ValueOf(cmd)
-				if executed[cmdValue] {
-					continue
-				}
-				var err error
-				switch {
-				case stack[cmdValue]:
-					err = errors.New("build: dependency cycle detected")
-				case len(stack) >= maxStack:
-					err = errors.New("build: maximum length of stack reached")
-				default:
-					stack[cmdValue] = true
-					c.Call(cmd, &err)
-					delete(stack, cmdValue)
-					executed[cmdValue] = true
-				}
-				if err != nil {
-					errChan <- err
-					close(errChan)
-					return
-				}
-			}
-		}
-	}
 	depsFunc := func(deps ...interface{}) {
 		queue := make(chan interface{})
 		done := make(chan struct{})
-		go worker(queue, done)
+		go worker(ctx, c, queue, done, errChan, stack, executed)
 	loop:
 		for _, d := range deps {
 			select {
@@ -138,7 +88,7 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 	func() {
 		defer func() {
 			if r := recover(); r != nil {
-				if err, ok := r.(error); ok && err == errReturn {
+				if err, ok := r.(error); ok && errors.Is(err, errReturn) {
 					return
 				}
 				panic(r)
@@ -152,6 +102,64 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 	return nil
 }
 
+func worker(ctx context.Context,
+	c *ioc.Container,
+	queue <-chan interface{},
+	done chan<- struct{},
+	errChan chan error,
+	stack, executed map[reflect.Value]bool,
+) {
+	defer close(done)
+	defer func() {
+		if r := recover(); r != nil {
+			var err error
+			if err2, ok := r.(error); ok {
+				if errors.Is(err2, errReturn) {
+					return
+				}
+				err = err2
+			} else {
+				err = errors.Errorf("command panicked: %v", r)
+			}
+			errChan <- err
+			close(errChan)
+		}
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			errChan <- ctx.Err()
+			close(errChan)
+			return
+		case cmd, ok := <-queue:
+			if !ok {
+				return
+			}
+			cmdValue := reflect.ValueOf(cmd)
+			if executed[cmdValue] {
+				continue
+			}
+			var err error
+			switch {
+			case stack[cmdValue]:
+				err = errors.New("build: dependency cycle detected")
+			case len(stack) >= maxStack:
+				err = errors.New("build: maximum length of stack reached")
+			default:
+				stack[cmdValue] = true
+				c.Call(cmd, &err)
+				delete(stack, cmdValue)
+				executed[cmdValue] = true
+			}
+			if err != nil {
+				errChan <- err
+				close(errChan)
+				return
+			}
+		}
+	}
+}
+
 const help = `Crust tool is used to build and run all the applications needed for development and testing on Coreum blockchain
 
 Available commands:
@@ -160,8 +168,7 @@ Available commands:
 - znet 	Tool used to spin up development environment running the same components which are used in production.
 - lint	Lints source code and checks that git status is clean
 - test  Runs unit tests
-- tidy 	Executes go mod tidy
-`
+- tidy 	Executes go mod tidy`
 
 // Autocomplete serves bash autocomplete functionality.
 // Returns true if autocomplete was requested and false otherwise.
@@ -176,7 +183,7 @@ func Autocomplete(executor Executor) bool {
 // Do receives configuration and runs commands
 func Do(ctx context.Context, name string, paths []string, executor Executor) error {
 	if len(os.Args) == 1 {
-		if _, err := fmt.Fprintf(os.Stderr, help, name, os.Args[0]); err != nil {
+		if _, err := fmt.Fprintln(os.Stderr, help); err != nil {
 			return errors.WithStack(err)
 		}
 		return nil

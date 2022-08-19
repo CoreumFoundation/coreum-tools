@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -20,8 +19,6 @@ import (
 
 // AppRunner is used to run application
 type AppRunner func(appFunc parallel.Task)
-
-var mu sync.Mutex
 
 // Service runs service app
 func Service(appName string, containerBuilder func(c *ioc.Container), appFunc interface{}) {

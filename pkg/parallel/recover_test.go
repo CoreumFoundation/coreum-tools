@@ -21,13 +21,17 @@ func TestPanicString(t *testing.T) {
 			return panicWith("oops")
 		})
 		return nil
-	}).(ErrPanic)
-	require.Nil(t, err.Unwrap())
-	require.EqualError(t, err, "panic: oops")
-	require.Equal(t, "oops", err.Value)
+	})
+
+	var panicErr PanicError
+	require.True(t, errors.As(err, &panicErr))
+
+	require.Nil(t, panicErr.Unwrap())
+	require.EqualError(t, panicErr, "panic: oops")
+	require.Equal(t, "oops", panicErr.Value)
 	// panicWith must be mentioned: the stack is that of the panic location,
 	// not where the panic is collected
-	require.Regexp(t, "(?s)^goroutine.*panicWith", string(err.Stack))
+	require.Regexp(t, "(?s)^goroutine.*panicWith", string(panicErr.Stack))
 }
 
 func TestPanicError(t *testing.T) {
@@ -37,11 +41,15 @@ func TestPanicError(t *testing.T) {
 			return panicWith(errors.New("oops"))
 		})
 		return nil
-	}).(ErrPanic)
-	require.Equal(t, errors.New("oops"), err.Unwrap())
-	require.EqualError(t, err, "panic: oops")
-	require.Equal(t, errors.New("oops"), err.Value)
+	})
+
+	var panicErr PanicError
+	require.True(t, errors.As(err, &panicErr))
+
+	require.Equal(t, errors.New("oops"), panicErr.Unwrap())
+	require.EqualError(t, panicErr, "panic: oops")
+	require.Equal(t, errors.New("oops"), panicErr.Value)
 	// panicWith must be mentioned: the stack is that of the panic location,
 	// not where the panic is collected
-	require.Regexp(t, "(?s)^goroutine.*panicWith", string(err.Stack))
+	require.Regexp(t, "(?s)^goroutine.*panicWith", string(panicErr.Stack))
 }

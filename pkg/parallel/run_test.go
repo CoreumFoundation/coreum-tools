@@ -26,6 +26,7 @@ func TestRunNoSubtasksError(t *testing.T) {
 	require.EqualError(t, err, "oops")
 }
 
+//nolint:dupl // This code is not really duplicated
 func TestRunSubtaskExit(t *testing.T) {
 	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
 	seq := make(chan int)
@@ -58,6 +59,7 @@ func TestRunSubtaskExit(t *testing.T) {
 	require.NoError(t, err)
 }
 
+//nolint:dupl // This code is not really duplicated
 func TestRunSubtaskContinue(t *testing.T) {
 	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
 	seq := make(chan int)

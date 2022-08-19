@@ -1,8 +1,10 @@
+//go:build simulation
+// +build simulation
+
 package logger
 
 import (
 	stderr "errors"
-	"testing"
 	"time"
 
 	"github.com/pkg/errors"
@@ -47,8 +49,8 @@ func (o object3) MarshalLogObject(marshaler zapcore.ObjectEncoder) error {
 	return marshaler.AddObject("nested", o.Nested)
 }
 
-func TestPrint(t *testing.T) {
-	config := ToolDefaultConfig
+func ExamplePrint() {
+	config := Config{Format: FormatYAML}
 	log := New(config).Named("loggerName").
 		With(zap.String("withField1", "value1"),
 			zap.Int("withField2", 2))
@@ -85,4 +87,6 @@ func TestPrint(t *testing.T) {
 
 	log.Error("This is error without error field, it should contain stack trace")
 	log.Error("This is error with error not containing stack trace so stack trace of log should be printed", zap.Error(stderr.New("error without stack trace")))
+
+	// Output: sample logs
 }
