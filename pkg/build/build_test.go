@@ -7,81 +7,84 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 )
 
 type report map[int]string
 
-func cmdA(r report, deps DepsFunc) error {
-	deps(cmdAA, cmdAB)
-	r[len(r)] = "a"
-	return nil
+func cmdA(r report, cmdAA, cmdAB CommandFunc) CommandFunc {
+	return func(ctx context.Context, deps DepsFunc) error {
+		deps(cmdAA, cmdAB)
+		r[len(r)] = "a"
+		return nil
+	}
 }
 
-func cmdAA(r report, deps DepsFunc) error {
-	deps(cmdAC)
-	r[len(r)] = "aa"
-	return nil
+func cmdAA(r report, cmdAC CommandFunc) CommandFunc {
+	return func(ctx context.Context, deps DepsFunc) error {
+		deps(cmdAC)
+		r[len(r)] = "aa"
+		return nil
+	}
 }
 
-func cmdAB(r report, deps DepsFunc) error {
-	deps(cmdAC)
-	r[len(r)] = "ab"
-	return nil
+func cmdAB(r report, cmdAC CommandFunc) CommandFunc {
+	return func(ctx context.Context, deps DepsFunc) error {
+		deps(cmdAC)
+		r[len(r)] = "ab"
+		return nil
+	}
 }
 
-func cmdAC(r report) error {
-	r[len(r)] = "ac"
-	return nil
+func cmdAC(r report) CommandFunc {
+	return func(ctx context.Context, deps DepsFunc) error {
+		r[len(r)] = "ac"
+		return nil
+	}
 }
 
-func cmdB() error {
+func cmdB(ctx context.Context, deps DepsFunc) error {
 	return errors.New("error")
 }
 
-func cmdC(deps DepsFunc) error {
+func cmdC(ctx context.Context, deps DepsFunc) error {
 	deps(cmdD)
 	return nil
 }
 
-func cmdD(deps DepsFunc) error {
+func cmdD(ctx context.Context, deps DepsFunc) error {
 	deps(cmdC)
 	return nil
 }
 
-func cmdE() error {
+func cmdE(ctx context.Context, deps DepsFunc) error {
 	panic("panic")
 }
 
-func cmdF(ctx context.Context) error {
+func cmdF(ctx context.Context, deps DepsFunc) error {
 	<-ctx.Done()
 	return ctx.Err()
-}
-
-var commands = map[string]interface{}{
-	"a":    cmdA,
-	"a/aa": cmdAA,
-	"a/ab": cmdAB,
-	"b":    cmdB,
-	"c":    cmdC,
-	"d":    cmdD,
-	"e":    cmdE,
-	"f":    cmdF,
 }
 
 var tCtx = context.Background()
 
 func setup(ctx context.Context) (Executor, report) {
 	r := report{}
-	c := ioc.New()
-	c.Singleton(func() report {
-		return r
-	})
-	c.Singleton(func() context.Context {
-		return ctx
-	})
-	return NewIoCExecutor(commands, c), r
+
+	cmdAC := cmdAC(r)
+	cmdAA := cmdAA(r, cmdAC)
+	cmdAB := cmdAB(r, cmdAC)
+	commands := map[string]CommandFunc{
+		"a":    cmdA(r, cmdAA, cmdAB),
+		"a/aa": cmdAA,
+		"a/ab": cmdAB,
+		"b":    cmdB,
+		"c":    cmdC,
+		"d":    cmdD,
+		"e":    cmdE,
+		"f":    cmdF,
+	}
+
+	return NewExecutor(commands), r
 }
 
 func TestRootCommand(t *testing.T) {
