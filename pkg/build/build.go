@@ -9,38 +9,26 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-
-	"github.com/CoreumFoundation/coreum-tools/pkg/ioc"
 )
 
 const maxStack = 100
 
 // CommandFunc represents executable command
-type CommandFunc func(ctx context.Context) error
+type CommandFunc func(ctx context.Context, deps DepsFunc) error
 
 // DepsFunc represents function for executing dependencies
-type DepsFunc func(deps ...interface{})
+type DepsFunc func(deps ...CommandFunc)
 
-// Executor defines interface of command executor
-type Executor interface {
-	// Paths lists all available command paths
-	Paths() []string
-
-	// Execute executes commands by their paths
-	Execute(ctx context.Context, paths []string) error
+// NewExecutor returns new executor
+func NewExecutor(commands map[string]CommandFunc) Executor {
+	return Executor{commands: commands}
 }
 
-// NewIoCExecutor returns new executor using IoC container to resolve parameters of commands
-func NewIoCExecutor(commands map[string]interface{}, c *ioc.Container) Executor {
-	return &iocExecutor{c: c, commands: commands}
+type Executor struct {
+	commands map[string]CommandFunc
 }
 
-type iocExecutor struct {
-	c        *ioc.Container
-	commands map[string]interface{}
-}
-
-func (e *iocExecutor) Paths() []string {
+func (e Executor) Paths() []string {
 	paths := make([]string, 0, len(e.commands))
 	for path := range e.commands {
 		paths = append(paths, path)
@@ -48,14 +36,14 @@ func (e *iocExecutor) Paths() []string {
 	return paths
 }
 
-func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
+func (e Executor) Execute(ctx context.Context, paths []string) error {
 	executed := map[reflect.Value]bool{}
 	stack := map[reflect.Value]bool{}
-	c := e.c.SubContainer()
 
+	var depsFunc DepsFunc
 	errReturn := errors.New("return")
 	errChan := make(chan error, 1)
-	worker := func(queue <-chan interface{}, done chan<- struct{}) {
+	worker := func(queue <-chan CommandFunc, done chan<- struct{}) {
 		defer close(done)
 		defer func() {
 			if r := recover(); r != nil {
@@ -94,7 +82,7 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 					err = errors.New("build: maximum length of stack reached")
 				default:
 					stack[cmdValue] = true
-					c.Call(cmd, &err)
+					err = cmd(ctx, depsFunc)
 					delete(stack, cmdValue)
 					executed[cmdValue] = true
 				}
@@ -106,8 +94,8 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 			}
 		}
 	}
-	depsFunc := func(deps ...interface{}) {
-		queue := make(chan interface{})
+	depsFunc = func(deps ...CommandFunc) {
+		queue := make(chan CommandFunc)
 		done := make(chan struct{})
 		go worker(queue, done)
 	loop:
@@ -124,11 +112,8 @@ func (e *iocExecutor) Execute(ctx context.Context, paths []string) error {
 			panic(errReturn)
 		}
 	}
-	c.Singleton(func() DepsFunc {
-		return depsFunc
-	})
 
-	initDeps := make([]interface{}, 0, len(paths))
+	initDeps := make([]CommandFunc, 0, len(paths))
 	for _, p := range paths {
 		if e.commands[p] == nil {
 			return errors.Errorf("build: command %s does not exist", p)
@@ -176,7 +161,7 @@ func Autocomplete(executor Executor) bool {
 // Do receives configuration and runs commands
 func Do(ctx context.Context, name string, paths []string, executor Executor) error {
 	if len(os.Args) == 1 {
-		if _, err := fmt.Fprintf(os.Stderr, help, name, os.Args[0]); err != nil {
+		if _, err := fmt.Fprint(os.Stderr, help, name); err != nil {
 			return errors.WithStack(err)
 		}
 		return nil
