@@ -2,13 +2,9 @@ package retry
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-
-	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
 
 // Retryable returns retryable error
@@ -36,8 +32,6 @@ func (e RetryableError) Unwrap() error {
 
 // Do retries running function until it returns non-retryable error
 func Do(ctx context.Context, retryAfter time.Duration, fn func() error) error {
-	log := logger.Get(ctx)
-	var lastMessage string
 	var r RetryableError
 	for {
 		var r2 RetryableError
@@ -51,12 +45,6 @@ func Do(ctx context.Context, retryAfter time.Duration, fn func() error) error {
 			return r2.err
 		}
 		r = r2
-
-		newMessage := r.err.Error()
-		if lastMessage != newMessage {
-			log.Debug(fmt.Sprintf("Will retry: %s", newMessage), zap.Error(r.err))
-			lastMessage = newMessage
-		}
 
 		select {
 		case <-ctx.Done():
