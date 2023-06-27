@@ -68,7 +68,7 @@ func run(appName string, loggerConfig logger.Config, appFunc parallel.Task, exit
 	case errors.Is(err, pflag.ErrHelp):
 		os.Exit(2)
 	default:
-		log.Error(fmt.Sprintf("Application returned error: %s", err), zap.Error(err))
+		log.Error(fmt.Sprintf("Application returned error: %+v", err))
 		os.Exit(1)
 	}
 }
