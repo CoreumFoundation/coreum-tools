@@ -42,7 +42,7 @@ func NewRetryableClient(cfg RetryableClientConfig) RetryableClient {
 }
 
 // DoJSON executes the HTTP application/json request with retires based on the client configuration.
-func (c RetryableClient) DoJSON(ctx context.Context, method, url string, reqBody any, resDecoder func([]byte) error) error {
+func (c RetryableClient) DoJSON(ctx context.Context, method, url string, reqBody interface{}, resDecoder func([]byte) error) error {
 	doCtx, doCtxCancel := context.WithTimeout(ctx, c.cfg.DoTimeout)
 	defer doCtxCancel()
 	return retry.Do(doCtx, c.cfg.RetryDelay, func() error {
@@ -53,7 +53,7 @@ func (c RetryableClient) DoJSON(ctx context.Context, method, url string, reqBody
 	})
 }
 
-func doJSON(ctx context.Context, method, url string, reqBody any, resDecoder func([]byte) error) error {
+func doJSON(ctx context.Context, method, url string, reqBody interface{}, resDecoder func([]byte) error) error {
 	reqBodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
 		return errors.Errorf("failed to marshal request body, err: %v", err)
