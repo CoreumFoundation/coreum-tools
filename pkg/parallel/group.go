@@ -7,32 +7,42 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
 
 var nextTaskID int64 = 0x0bace1d000000000
 
+// GroupOption is group option.
+type GroupOption func(o *Group)
+
+// WithGroupLogger is group option which sets the custom logger for the group.
+func WithGroupLogger(log Logger) GroupOption {
+	return func(o *Group) {
+		o.log = log
+	}
+}
+
 // Group is a facility for running a task with several subtasks without
 // inversion of control. For most ordinary use cases, use Run instead.
 //
-//  return Run(ctx, start)
+//	return Run(ctx, start)
 //
 // ...is equivalent to:
 //
-//  g := NewGroup(ctx)
-//  if err := start(g.Context(), g.Spawn); err != nil {
-//      g.Exit(err)
-//  }
-//  return g.Wait()
+//	g := NewGroup(ctx)
+//	if err := start(g.Context(), g.Spawn); err != nil {
+//	    g.Exit(err)
+//	}
+//	return g.Wait()
 //
 // Group is mostly useful in test suites where starting and finishing the group
 // is controlled by test setup and teardown functions.
 type Group struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	log Logger
 
 	mu      sync.Mutex
 	running int
@@ -42,8 +52,21 @@ type Group struct {
 }
 
 // NewGroup creates a new Group controlled by the given context
-func NewGroup(ctx context.Context) *Group {
+func NewGroup(ctx context.Context, options ...GroupOption) *Group {
 	g := new(Group)
+
+	var log Logger
+	zapLog := logger.Get(ctx)
+	if zapLog != nil {
+		log = NewZapLogger(zapLog)
+	} else {
+		log = NewNoOptsLogger()
+	}
+	g.log = log
+	for _, o := range options {
+		o(g)
+	}
+
 	g.ctx, g.cancel = context.WithCancel(ctx)
 	g.done = make(chan struct{})
 	close(g.done)
@@ -58,31 +81,27 @@ func NewGroup(ctx context.Context) *Group {
 //
 // Example within parallel.Run:
 //
-//  err := parallel.Run(ctx, func(ctx context.Context, spawn parallel.SpawnFn) error {
-//      spawn(...)
-//      spawn(...)
-//      subgroup := parallel.NewSubgroup(spawn, "updater")
-//      subgroup.Spawn(...)
-//      subgroup.Spawn(...)
-//      return nil
-//  })
+//	err := parallel.Run(ctx, func(ctx context.Context, spawn parallel.SpawnFn) error {
+//	    spawn(...)
+//	    spawn(...)
+//	    subgroup := parallel.NewSubgroup(spawn, "updater")
+//	    subgroup.Spawn(...)
+//	    subgroup.Spawn(...)
+//	    return nil
+//	})
 //
 // Example within an explicit group:
 //
-//  group := parallel.NewGroup(ctx)
-//  group.Spawn(...)
-//  group.Spawn(...)
-//  subgroup := parallel.NewSubgroup(group.Spawn, "updater")
-//  subgroup.Spawn(...)
-//  subgroup.Spawn(...)
-//
-func NewSubgroup(spawn SpawnFn, name string, onExit OnExit, fields ...zapcore.Field) *Group {
+//	group := parallel.NewGroup(ctx)
+//	group.Spawn(...)
+//	group.Spawn(...)
+//	subgroup := parallel.NewSubgroup(group.Spawn, "updater")
+//	subgroup.Spawn(...)
+//	subgroup.Spawn(...)
+func NewSubgroup(spawn SpawnFn, name string, onExit OnExit, options ...GroupOption) *Group {
 	ch := make(chan *Group)
 	spawn(name, onExit, func(ctx context.Context) error {
-		if len(fields) > 0 {
-			ctx = logger.With(ctx, fields...)
-		}
-		g := NewGroup(ctx)
+		g := NewGroup(ctx, options...)
 		ch <- g
 		return g.Complete(ctx)
 	})
@@ -100,8 +119,6 @@ func (g *Group) Context() context.Context {
 // When a subtask finishes, it sets the result of the group if it's not already
 // set (unless the task returns nil and its OnExit mode is Continue).
 func (g *Group) Spawn(name string, onExit OnExit, task Task) {
-	id := atomic.AddInt64(&nextTaskID, 1)
-
 	g.mu.Lock()
 	if g.running == 0 {
 		g.done = make(chan struct{})
@@ -109,17 +126,21 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 	g.running++
 	g.mu.Unlock()
 
-	log := logger.Get(g.ctx).Named(name)
-	log.Debug("Task spawned", zap.String("id", fmt.Sprintf("%x", id)), zap.Stringer("onExit", onExit))
+	id := atomic.AddInt64(&nextTaskID, 1)
+	g.log.Debug(name, fmt.Sprintf("Task spawned, id:%x, onExit: %s", id, onExit.String()))
 
-	go g.runTask(logger.WithLogger(g.ctx, log), id, name, onExit, task)
+	go g.runTask(g.ctx, name, onExit, task)
 }
 
 // Second parameter is the task ID. It is ignored because the only reason to
 // pass it is to add it to the stack trace
-func (g *Group) runTask(ctx context.Context, _ int64, name string, onExit OnExit, task Task) {
+func (g *Group) runTask(ctx context.Context, name string, onExit OnExit, task Task) {
 	err := runTask(ctx, task)
-	logger.Get(ctx).Debug("Task finished", zap.Error(err))
+	if err != nil {
+		g.log.Error(name, "Task finished with error", err)
+	} else {
+		g.log.Debug(name, "Task finished successfully")
+	}
 
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -206,12 +227,11 @@ func (g *Group) Wait() error {
 //
 // This is a convenience method useful when attaching a subgroup:
 //
-//  spawn("subgroup", parallel.Fail, subgroup.Complete)
+//	spawn("subgroup", parallel.Fail, subgroup.Complete)
 //
 // ...or:
 //
-//  group.Spawn("subgroup", parallel.Fail, subgroup.Complete)
-//
+//	group.Spawn("subgroup", parallel.Fail, subgroup.Complete)
 func (g *Group) Complete(ctx context.Context) error {
 	select {
 	case <-ctx.Done():

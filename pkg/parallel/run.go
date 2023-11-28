@@ -86,28 +86,27 @@ func (onExit OnExit) String() string {
 //
 // Example:
 //
-//  err := parallel.Run(ctx, func(ctx context.Context, spawn parallel.SpawnFn) error {
-//      s1, err := service1.New(...)
-//      if err != nil {
-//          return err
-//      }
+//	err := parallel.Run(ctx, func(ctx context.Context, spawn parallel.SpawnFn) error {
+//	    s1, err := service1.New(...)
+//	    if err != nil {
+//	        return err
+//	    }
 //
-//      s2, err := service2.New(...)
-//      if err != nil {
-//          return err
-//      }
+//	    s2, err := service2.New(...)
+//	    if err != nil {
+//	        return err
+//	    }
 //
-//      if err := s1.HeavyInit(ctx); err != nil {
-//          return err
-//      }
+//	    if err := s1.HeavyInit(ctx); err != nil {
+//	        return err
+//	    }
 //
-//      spawn("service1", parallel.Fail, s1.Run)
-//      spawn("service2", parallel.Fail, s2.Run)
-//      return nil
-//  })
-//
-func Run(ctx context.Context, start func(ctx context.Context, spawn SpawnFn) error) error {
-	g := NewGroup(ctx)
+//	    spawn("service1", parallel.Fail, s1.Run)
+//	    spawn("service2", parallel.Fail, s2.Run)
+//	    return nil
+//	})
+func Run(ctx context.Context, start func(ctx context.Context, spawn SpawnFn) error, options ...GroupOption) error {
+	g := NewGroup(ctx, options...)
 
 	if err := start(g.Context(), g.Spawn); err != nil {
 		g.Exit(err)

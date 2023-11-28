@@ -61,7 +61,12 @@ func Get(ctx context.Context) *zap.Logger {
 	mu.Lock()
 	defer mu.Unlock()
 
-	return ctx.Value(logField).(*zap.Logger)
+	log := ctx.Value(logField)
+	if log == nil {
+		return nil
+	}
+
+	return log.(*zap.Logger)
 }
 
 // WithLogger adds existing logger to context
