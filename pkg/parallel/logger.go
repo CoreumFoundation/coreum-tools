@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	_ Logger = NoopLogger{}
+	_ Logger = NoOpLogger{}
 	_ Logger = ZapLogger{}
 )
 
@@ -15,21 +15,21 @@ type Logger interface {
 	Error(taskName, message string, err error)
 }
 
-// ********** NoopLogger **********
+// ********** NoOpLogger **********
 
-// NoopLogger is no opts log.
-type NoopLogger struct{}
+// NoOpLogger is no opts log.
+type NoOpLogger struct{}
 
-// NewNoopLogger returns a new instance of the NoopLogger.
-func NewNoopLogger() NoopLogger {
-	return NoopLogger{}
+// NewNoOpLogger returns a new instance of the NoOpLogger.
+func NewNoOpLogger() NoOpLogger {
+	return NoOpLogger{}
 }
 
 // Debug does nothing.
-func (n NoopLogger) Debug(_, _ string) {}
+func (n NoOpLogger) Debug(_, _ string) {}
 
 // Error does nothing.
-func (n NoopLogger) Error(_, _ string, _ error) {}
+func (n NoOpLogger) Error(_, _ string, _ error) {}
 
 // ********** ZapLogger **********
 
