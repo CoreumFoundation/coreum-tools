@@ -344,10 +344,10 @@ type LoggerMock struct {
 	errorCalls int32
 }
 
-func (l *LoggerMock) Debug(_, _ string) {
+func (l *LoggerMock) Debug(_ string, _ int64, _ OnExit, _ string) {
 	atomic.AddInt32(&l.debugCalls, 1)
 }
 
-func (l *LoggerMock) Error(_, _ string, _ error) {
+func (l *LoggerMock) Error(_ string, _ int64, _ OnExit, _ string, _ error) {
 	atomic.AddInt32(&l.errorCalls, 1)
 }

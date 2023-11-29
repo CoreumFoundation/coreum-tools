@@ -2,7 +2,6 @@ package parallel
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -60,7 +59,7 @@ func NewGroup(ctx context.Context, options ...GroupOption) *Group {
 	if zapLog != nil {
 		log = NewZapLogger(zapLog)
 	} else {
-		log = NewNoOptsLogger()
+		log = NewNoOpLogger()
 	}
 	g.log = log
 	for _, o := range options {
@@ -127,19 +126,19 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 	g.mu.Unlock()
 
 	id := atomic.AddInt64(&nextTaskID, 1)
-	g.log.Debug(name, fmt.Sprintf("Task spawned, id:%x, onExit: %s", id, onExit.String()))
+	g.log.Debug(name, id, onExit, "Task spawned")
 
-	go g.runTask(g.ctx, name, onExit, task)
+	go g.runTask(g.ctx, name, id, onExit, task)
 }
 
 // Second parameter is the task ID. It is ignored because the only reason to
 // pass it is to add it to the stack trace
-func (g *Group) runTask(ctx context.Context, name string, onExit OnExit, task Task) {
+func (g *Group) runTask(ctx context.Context, name string, id int64, onExit OnExit, task Task) {
 	err := runTask(ctx, task)
 	if err != nil {
-		g.log.Error(name, "Task finished with error", err)
+		g.log.Error(name, id, onExit, "Task finished with error", err)
 	} else {
-		g.log.Debug(name, "Task finished successfully")
+		g.log.Debug(name, id, onExit, "Task finished successfully")
 	}
 
 	g.mu.Lock()
