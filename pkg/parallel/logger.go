@@ -1,6 +1,9 @@
 package parallel
 
 import (
+	"fmt"
+
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -47,10 +50,19 @@ func NewZapLogger(zapLog *zap.Logger) ZapLogger {
 
 // Debug prints debug log.
 func (n ZapLogger) Debug(name string, id int64, onExit OnExit, message string) {
-	n.zapLog.Named(name).With(zap.Int64("id", id), zap.String("onExit", onExit.String())).Debug(message)
+	n.getTaskLogger(name, id, onExit).Debug(message)
 }
 
 // Error prints error log.
 func (n ZapLogger) Error(name string, id int64, onExit OnExit, message string, err error) {
-	n.zapLog.Named(name).With(zap.Int64("id", id), zap.String("onExit", onExit.String())).Error(message, zap.Error(err))
+	var panicErr ErrPanic
+	if errors.As(err, &panicErr) {
+		n.getTaskLogger(name, id, onExit, zap.String("value", fmt.Sprint(panicErr.Value)), zap.ByteString("stack", panicErr.Stack)).Error(message)
+		return
+	}
+	n.getTaskLogger(name, id, onExit, zap.Error(err)).Error(message)
+}
+
+func (n ZapLogger) getTaskLogger(name string, id int64, onExit OnExit, fields ...zap.Field) *zap.Logger {
+	return n.zapLog.Named(name).With(zap.Int64("id", id), zap.String("onExit", onExit.String())).With(fields...)
 }

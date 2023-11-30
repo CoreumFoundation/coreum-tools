@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-
-	"go.uber.org/zap"
-
-	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
 
 // ErrPanic is the error type that occurs when a subtask panics
@@ -29,14 +25,14 @@ func (err ErrPanic) Unwrap() error {
 	return nil
 }
 
-// runTask executes the task in the current goroutine, recovering from panics.
+// runTaskWithRecovery executes the task in the current goroutine, recovering from panics.
 // A panic is returned as ErrPanic.
-func runTask(ctx context.Context, task Task) (err error) {
+func runTaskWithRecovery(ctx context.Context, log Logger, name string, id int64, onExit OnExit, task Task) (err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			panicErr := ErrPanic{Value: p, Stack: debug.Stack()}
 			err = panicErr
-			logger.Get(ctx).Error("Panic", zap.String("value", fmt.Sprint(p)), zap.ByteString("stack", panicErr.Stack))
+			log.Error(name, id, onExit, "Panic", err)
 		}
 	}()
 	return task(ctx)
