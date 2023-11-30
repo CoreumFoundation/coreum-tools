@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 	"go.uber.org/zap"
+
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
 
 // ErrPanic is the error type that occurs when a subtask panics

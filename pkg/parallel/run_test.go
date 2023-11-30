@@ -3,6 +3,7 @@ package parallel
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -161,6 +162,46 @@ func TestRunSubtaskError(t *testing.T) {
 	require.EqualError(t, err, "oops1")
 }
 
+func TestRunSubtaskErrorWithCustomLogger(t *testing.T) {
+	// set logger to be overridden with custom
+	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
+	seq := make(chan int)
+	step1 := make(chan struct{})
+	step2 := make(chan struct{})
+	log := &LoggerMock{}
+	var err error
+	go func() {
+		err = Run(ctx, func(ctx context.Context, spawn SpawnFn) error {
+			spawn("error1", Exit, func(ctx context.Context) error {
+				<-step1
+				seq <- 2
+				return errors.New("oops1")
+			})
+			spawn("error2", Exit, func(ctx context.Context) error {
+				seq <- 1
+				<-step2
+				seq <- 3
+				<-ctx.Done()
+				seq <- 4
+				return errors.New("oops2")
+			})
+			return nil
+		}, WithGroupLogger(log))
+		seq <- 5
+	}()
+	require.Equal(t, 1, <-seq)
+	close(step1)
+	require.Equal(t, 2, <-seq)
+	close(step2)
+	require.Equal(t, 3, <-seq)
+	require.Equal(t, 4, <-seq)
+	require.Equal(t, 5, <-seq)
+	require.EqualError(t, err, "oops1")
+
+	require.Equal(t, int32(2), log.debugCalls)
+	require.Equal(t, int32(2), log.errorCalls)
+}
+
 func TestRunSubtaskInitError(t *testing.T) {
 	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
 	seq := make(chan int)
@@ -296,4 +337,17 @@ func TestExitFailTaskOnCancel(t *testing.T) {
 	require.Equal(t, 2, <-seq)
 	require.Equal(t, 3, <-seq)
 	require.NoError(t, err)
+}
+
+type LoggerMock struct {
+	debugCalls int32
+	errorCalls int32
+}
+
+func (l *LoggerMock) Debug(_ string, _ int64, _ OnExit, _ string) {
+	atomic.AddInt32(&l.debugCalls, 1)
+}
+
+func (l *LoggerMock) Error(_ string, _ int64, _ OnExit, _ string, _ error) {
+	atomic.AddInt32(&l.errorCalls, 1)
 }
