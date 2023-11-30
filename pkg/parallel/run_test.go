@@ -339,6 +339,8 @@ func TestExitFailTaskOnCancel(t *testing.T) {
 	require.NoError(t, err)
 }
 
+var _ Logger = &LoggerMock{}
+
 type LoggerMock struct {
 	debugCalls int32
 	errorCalls int32
