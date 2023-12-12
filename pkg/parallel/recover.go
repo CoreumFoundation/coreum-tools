@@ -3,6 +3,8 @@ package parallel
 import (
 	"context"
 	"fmt"
+
+	"go.uber.org/zap"
 	"runtime/debug"
 )
 
@@ -32,7 +34,14 @@ func runTaskWithRecovery(ctx context.Context, log Logger, name string, id int64,
 		if p := recover(); p != nil {
 			panicErr := ErrPanic{Value: p, Stack: debug.Stack()}
 			err = panicErr
-			log.Error(name, id, onExit, "Panic", err)
+			log.Error(
+				ctx,
+				"Panic",
+				zap.String("name", name),
+				zap.Int64("id", id),
+				zap.String("onExit", onExit.String()),
+				zap.Error(err),
+			)
 		}
 	}()
 	return task(ctx)

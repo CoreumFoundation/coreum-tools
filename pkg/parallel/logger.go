@@ -1,9 +1,8 @@
 package parallel
 
 import (
-	"fmt"
+	"context"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -14,8 +13,8 @@ var (
 
 // Logger is task log.
 type Logger interface {
-	Debug(name string, id int64, onExit OnExit, message string)
-	Error(name string, id int64, onExit OnExit, message string, err error)
+	Debug(ctx context.Context, msg string, fields ...zap.Field)
+	Error(ctx context.Context, msg string, fields ...zap.Field)
 }
 
 // ********** NoOpLogger **********
@@ -29,10 +28,10 @@ func NewNoOpLogger() NoOpLogger {
 }
 
 // Debug does nothing.
-func (n NoOpLogger) Debug(_ string, _ int64, _ OnExit, _ string) {}
+func (n NoOpLogger) Debug(_ context.Context, _ string, _ ...zap.Field) {}
 
 // Error does nothing.
-func (n NoOpLogger) Error(_ string, _ int64, _ OnExit, _ string, _ error) {}
+func (n NoOpLogger) Error(_ context.Context, _ string, _ ...zap.Field) {}
 
 // ********** ZapLogger **********
 
@@ -48,21 +47,10 @@ func NewZapLogger(zapLog *zap.Logger) ZapLogger {
 	}
 }
 
-// Debug prints debug log.
-func (n ZapLogger) Debug(name string, id int64, onExit OnExit, message string) {
-	n.getTaskLogger(name, id, onExit).Debug(message)
+func (z ZapLogger) Debug(_ context.Context, msg string, fields ...zap.Field) {
+	z.zapLog.Debug(msg, fields...)
 }
 
-// Error prints error log.
-func (n ZapLogger) Error(name string, id int64, onExit OnExit, message string, err error) {
-	var panicErr ErrPanic
-	if errors.As(err, &panicErr) {
-		n.getTaskLogger(name, id, onExit, zap.String("value", fmt.Sprint(panicErr.Value)), zap.ByteString("stack", panicErr.Stack)).Error(message)
-		return
-	}
-	n.getTaskLogger(name, id, onExit, zap.Error(err)).Error(message)
-}
-
-func (n ZapLogger) getTaskLogger(name string, id int64, onExit OnExit, fields ...zap.Field) *zap.Logger {
-	return n.zapLog.Named(name).With(zap.Int64("id", id), zap.String("onExit", onExit.String())).With(fields...)
+func (z ZapLogger) Error(_ context.Context, msg string, fields ...zap.Field) {
+	z.zapLog.Error(msg, fields...)
 }

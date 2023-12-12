@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
@@ -126,7 +127,13 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 	g.mu.Unlock()
 
 	id := atomic.AddInt64(&nextTaskID, 1)
-	g.log.Debug(name, id, onExit, "Task spawned")
+	g.log.Debug(
+		g.ctx,
+		"Task spawned",
+		zap.String("name", name),
+		zap.Int64("id", id),
+		zap.String("onExit", onExit.String()),
+	)
 
 	go g.runTask(g.ctx, name, id, onExit, task)
 }
@@ -136,9 +143,22 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 func (g *Group) runTask(ctx context.Context, name string, id int64, onExit OnExit, task Task) {
 	err := runTaskWithRecovery(ctx, g.log, name, id, onExit, task)
 	if err != nil {
-		g.log.Error(name, id, onExit, "Task finished with error", err)
+		g.log.Error(
+			ctx,
+			"Task finished with error",
+			zap.String("name", name),
+			zap.Int64("id", id),
+			zap.String("onExit", onExit.String()),
+			zap.Error(err),
+		)
 	} else {
-		g.log.Debug(name, id, onExit, "Task finished successfully")
+		g.log.Debug(
+			ctx,
+			"Task finished successfully",
+			zap.String("name", name),
+			zap.Int64("id", id),
+			zap.String("onExit", onExit.String()),
+		)
 	}
 
 	g.mu.Lock()
