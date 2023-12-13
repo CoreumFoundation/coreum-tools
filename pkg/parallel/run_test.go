@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 
 	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
 )
@@ -346,10 +347,10 @@ type LoggerMock struct {
 	errorCalls int32
 }
 
-func (l *LoggerMock) Debug(_ string, _ int64, _ OnExit, _ string) {
+func (l *LoggerMock) Debug(_ context.Context, _ string, _ ...zap.Field) {
 	atomic.AddInt32(&l.debugCalls, 1)
 }
 
-func (l *LoggerMock) Error(_ string, _ int64, _ OnExit, _ string, _ error) {
+func (l *LoggerMock) Error(_ context.Context, _ string, _ ...zap.Field) {
 	atomic.AddInt32(&l.errorCalls, 1)
 }
