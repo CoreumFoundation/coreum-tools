@@ -53,7 +53,10 @@ func run(appName string, loggerConfig logger.Config, appFunc parallel.Task, exit
 
 			select {
 			case <-ctx.Done():
-				return nil
+				if errors.Is(ctx.Err(), context.Canceled) {
+					return nil
+				}
+				return ctx.Err()
 			case sig := <-sigs:
 				log.Info("Signal received, terminating...", zap.Stringer("signal", sig))
 			}
