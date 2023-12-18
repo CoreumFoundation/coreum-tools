@@ -142,7 +142,7 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 // pass it is to add it to the stack trace
 func (g *Group) runTask(ctx context.Context, name string, id int64, onExit OnExit, task Task) {
 	err := runTaskWithRecovery(ctx, g.log, name, id, onExit, task)
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil {
 		g.log.Error(
 			ctx,
 			"Task finished with error",
