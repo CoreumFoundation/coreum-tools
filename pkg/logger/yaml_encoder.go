@@ -15,22 +15,25 @@ import (
 	"github.com/CoreumFoundation/coreum-tools/pkg/must"
 )
 
-var bufPool = buffer.NewPool()
+var (
+	bufPool    = buffer.NewPool()
+	GetBufPool = bufPool.Get
+)
 
 func init() {
 	must.OK(zap.RegisterEncoder(string(FormatYAML), func(config zapcore.EncoderConfig) (zapcore.Encoder, error) {
-		return newConsoleEncoder(0), nil
+		return NewYamlEncoder(0), nil
 	}))
 }
 
-func newConsoleEncoder(nested int) *console {
-	return &console{
+func NewYamlEncoder(nested int) *YamlEncoder {
+	return &YamlEncoder{
 		nested: nested,
-		buffer: bufPool.Get(),
+		buffer: GetBufPool(),
 	}
 }
 
-type console struct {
+type YamlEncoder struct {
 	nested                 int
 	element                int
 	ignoreFirstIndentation bool
@@ -40,19 +43,23 @@ type console struct {
 	buffer                 *buffer.Buffer
 }
 
-func (c *console) AddArray(key string, marshaler zapcore.ArrayMarshaler) error {
+func (c *YamlEncoder) GetBuffer() *buffer.Buffer {
+	return c.buffer
+}
+
+func (c *YamlEncoder) AddArray(key string, marshaler zapcore.ArrayMarshaler) error {
 	c.addKey(key)
 	c.buffer.AppendByte('\n')
 	return c.AppendArray(marshaler)
 }
 
-func (c *console) AddObject(key string, marshaler zapcore.ObjectMarshaler) error {
+func (c *YamlEncoder) AddObject(key string, marshaler zapcore.ObjectMarshaler) error {
 	c.addKey(key)
 	c.buffer.AppendByte('\n')
 	return c.AppendObject(marshaler)
 }
 
-func (c *console) AddBinary(key string, value []byte) {
+func (c *YamlEncoder) AddBinary(key string, value []byte) {
 	c.addKey(key)
 	c.buffer.AppendByte('"')
 	c.buffer.AppendString(hex.EncodeToString(value))
@@ -60,139 +67,139 @@ func (c *console) AddBinary(key string, value []byte) {
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddByteString(key string, value []byte) {
+func (c *YamlEncoder) AddByteString(key string, value []byte) {
 	c.addKey(key)
 	c.buffer.AppendString(string(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddBool(key string, value bool) {
+func (c *YamlEncoder) AddBool(key string, value bool) {
 	c.addKey(key)
 	c.buffer.AppendBool(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddComplex128(key string, value complex128) {
+func (c *YamlEncoder) AddComplex128(key string, value complex128) {
 	c.addKey(key)
 	c.appendComplex128(value)
 }
 
-func (c *console) AddComplex64(key string, value complex64) {
+func (c *YamlEncoder) AddComplex64(key string, value complex64) {
 	c.addKey(key)
 	c.appendComplex128(complex128(value))
 }
 
-func (c *console) AddDuration(key string, value time.Duration) {
+func (c *YamlEncoder) AddDuration(key string, value time.Duration) {
 	c.addKey(key)
 	c.buffer.AppendString(value.String())
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddFloat64(key string, value float64) {
+func (c *YamlEncoder) AddFloat64(key string, value float64) {
 	c.addKey(key)
 	c.buffer.AppendFloat(value, 64)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddFloat32(key string, value float32) {
+func (c *YamlEncoder) AddFloat32(key string, value float32) {
 	c.addKey(key)
 	c.buffer.AppendFloat(float64(value), 32)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddInt(key string, value int) {
+func (c *YamlEncoder) AddInt(key string, value int) {
 	c.addKey(key)
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddInt64(key string, value int64) {
+func (c *YamlEncoder) AddInt64(key string, value int64) {
 	c.addKey(key)
 	c.buffer.AppendInt(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddInt32(key string, value int32) {
+func (c *YamlEncoder) AddInt32(key string, value int32) {
 	c.addKey(key)
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddInt16(key string, value int16) {
+func (c *YamlEncoder) AddInt16(key string, value int16) {
 	c.addKey(key)
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddInt8(key string, value int8) {
+func (c *YamlEncoder) AddInt8(key string, value int8) {
 	c.addKey(key)
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddString(key, value string) {
+func (c *YamlEncoder) AddString(key, value string) {
 	c.addKey(key)
 	appendString(c.buffer, value, c.indentation())
 }
 
-func (c *console) AddTime(key string, value time.Time) {
+func (c *YamlEncoder) AddTime(key string, value time.Time) {
 	c.addKey(key)
 	c.buffer.AppendTime(value.UTC(), "2006-01-02 15:04:05.000")
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUint(key string, value uint) {
+func (c *YamlEncoder) AddUint(key string, value uint) {
 	c.addKey(key)
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUint64(key string, value uint64) {
+func (c *YamlEncoder) AddUint64(key string, value uint64) {
 	c.addKey(key)
 	c.buffer.AppendUint(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUint32(key string, value uint32) {
+func (c *YamlEncoder) AddUint32(key string, value uint32) {
 	c.addKey(key)
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUint16(key string, value uint16) {
+func (c *YamlEncoder) AddUint16(key string, value uint16) {
 	c.addKey(key)
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUint8(key string, value uint8) {
+func (c *YamlEncoder) AddUint8(key string, value uint8) {
 	c.addKey(key)
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddUintptr(key string, value uintptr) {
+func (c *YamlEncoder) AddUintptr(key string, value uintptr) {
 	c.addKey(key)
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AddReflected(key string, value interface{}) error {
+func (c *YamlEncoder) AddReflected(key string, value interface{}) error {
 	c.addKey(key)
 	return c.AppendReflected(value)
 }
 
-func (c *console) OpenNamespace(key string) {
+func (c *YamlEncoder) OpenNamespace(key string) {
 	c.nested = 0
 	c.addKey(key)
 	c.buffer.AppendByte('\n')
 	c.nested = 1
 }
 
-func (c *console) Clone() zapcore.Encoder {
-	buf := bufPool.Get()
+func (c *YamlEncoder) Clone() zapcore.Encoder {
+	buf := GetBufPool()
 	must.Any(buf.Write(c.buffer.Bytes()))
-	return &console{
+	return &YamlEncoder{
 		nested:              c.nested,
 		array:               c.array,
 		skipErrorStackTrace: c.skipErrorStackTrace,
@@ -201,8 +208,8 @@ func (c *console) Clone() zapcore.Encoder {
 	}
 }
 
-func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
-	buf := bufPool.Get()
+func (c *YamlEncoder) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
+	buf := GetBufPool()
 	buf.AppendString(`- log: "`)
 	buf.AppendTime(entry.Time.UTC(), "2006-01-02 15:04:05.000 ")
 	buf.AppendString(strings.ToUpper(entry.Level.CapitalString()))
@@ -216,13 +223,13 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 		must.Any(buf.Write(c.buffer.Bytes()))
 	}
 
-	subEncoder := newConsoleEncoder(0)
+	subEncoder := NewYamlEncoder(0)
 	if entry.Level == zap.InfoLevel {
 		subEncoder.skipErrorStackTrace = true
 	}
 	defer subEncoder.buffer.Free()
 	for _, field := range fields {
-		if !subEncoder.appendError(field) {
+		if !subEncoder.AppendError(field) {
 			field.AddTo(subEncoder)
 		}
 	}
@@ -249,124 +256,124 @@ func (c *console) EncodeEntry(entry zapcore.Entry, fields []zapcore.Field) (*buf
 	return buf, nil
 }
 
-func (c *console) AppendBool(value bool) {
+func (c *YamlEncoder) AppendBool(value bool) {
 	c.addComma()
 	c.buffer.AppendBool(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendByteString(value []byte) {
+func (c *YamlEncoder) AppendByteString(value []byte) {
 	c.addComma()
 	appendString(c.buffer, string(value), c.indentation())
 }
 
-func (c *console) AppendComplex128(value complex128) {
+func (c *YamlEncoder) AppendComplex128(value complex128) {
 	c.addComma()
 	c.appendComplex128(value)
 }
 
-func (c *console) AppendComplex64(value complex64) {
+func (c *YamlEncoder) AppendComplex64(value complex64) {
 	c.addComma()
 	c.appendComplex128(complex128(value))
 }
 
-func (c *console) AppendFloat64(value float64) {
+func (c *YamlEncoder) AppendFloat64(value float64) {
 	c.addComma()
 	c.buffer.AppendFloat(value, 64)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendFloat32(value float32) {
+func (c *YamlEncoder) AppendFloat32(value float32) {
 	c.addComma()
 	c.buffer.AppendFloat(float64(value), 32)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendInt(value int) {
+func (c *YamlEncoder) AppendInt(value int) {
 	c.addComma()
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendInt64(value int64) {
+func (c *YamlEncoder) AppendInt64(value int64) {
 	c.addComma()
 	c.buffer.AppendInt(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendInt32(value int32) {
+func (c *YamlEncoder) AppendInt32(value int32) {
 	c.addComma()
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendInt16(value int16) {
+func (c *YamlEncoder) AppendInt16(value int16) {
 	c.addComma()
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendInt8(value int8) {
+func (c *YamlEncoder) AppendInt8(value int8) {
 	c.addComma()
 	c.buffer.AppendInt(int64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendString(value string) {
+func (c *YamlEncoder) AppendString(value string) {
 	c.addComma()
 	appendString(c.buffer, value, c.indentation())
 }
 
-func (c *console) AppendUint(value uint) {
+func (c *YamlEncoder) AppendUint(value uint) {
 	c.addComma()
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendUint64(value uint64) {
+func (c *YamlEncoder) AppendUint64(value uint64) {
 	c.addComma()
 	c.buffer.AppendUint(value)
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendUint32(value uint32) {
+func (c *YamlEncoder) AppendUint32(value uint32) {
 	c.addComma()
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendUint16(value uint16) {
+func (c *YamlEncoder) AppendUint16(value uint16) {
 	c.addComma()
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendUint8(value uint8) {
+func (c *YamlEncoder) AppendUint8(value uint8) {
 	c.addComma()
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendUintptr(value uintptr) {
+func (c *YamlEncoder) AppendUintptr(value uintptr) {
 	c.addComma()
 	c.buffer.AppendUint(uint64(value))
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendDuration(value time.Duration) {
+func (c *YamlEncoder) AppendDuration(value time.Duration) {
 	c.addComma()
 	c.buffer.AppendString(value.String())
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendTime(value time.Time) {
+func (c *YamlEncoder) AppendTime(value time.Time) {
 	c.addComma()
 	c.buffer.AppendTime(value.UTC(), "2006-01-02 15:04:05.000")
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) AppendArray(marshaler zapcore.ArrayMarshaler) error {
-	subEncoder := newConsoleEncoder(c.nested + 1)
+func (c *YamlEncoder) AppendArray(marshaler zapcore.ArrayMarshaler) error {
+	subEncoder := NewYamlEncoder(c.nested + 1)
 	subEncoder.array = true
 	defer subEncoder.buffer.Free()
 
@@ -379,8 +386,8 @@ func (c *console) AppendArray(marshaler zapcore.ArrayMarshaler) error {
 	return nil
 }
 
-func (c *console) AppendObject(marshaler zapcore.ObjectMarshaler) error {
-	subEncoder := newConsoleEncoder(c.nested + 1)
+func (c *YamlEncoder) AppendObject(marshaler zapcore.ObjectMarshaler) error {
+	subEncoder := NewYamlEncoder(c.nested + 1)
 	if c.array {
 		subEncoder.nested--
 		subEncoder.ignoreFirstIndentation = true
@@ -396,7 +403,7 @@ func (c *console) AppendObject(marshaler zapcore.ObjectMarshaler) error {
 	return nil
 }
 
-func (c *console) AppendReflected(value interface{}) error {
+func (c *YamlEncoder) AppendReflected(value interface{}) error {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.Invalid:
@@ -445,36 +452,7 @@ func (c *console) AppendReflected(value interface{}) error {
 	return nil
 }
 
-func (c *console) indentation() string {
-	var res string
-	for i := 0; i < c.nested; i++ {
-		res += "  "
-	}
-	return res
-}
-
-func (c *console) addComma() {
-	if c.array {
-		c.buffer.AppendString(c.indentation())
-		c.buffer.AppendString("  - ")
-	}
-}
-
-func (c *console) addKey(key string) {
-	if !c.ignoreFirstIndentation || c.element > 0 {
-		c.buffer.AppendString(c.indentation())
-		c.buffer.AppendString("    ")
-	}
-	c.buffer.AppendString(key)
-	c.buffer.AppendString(": ")
-	c.element++
-}
-
-func (c *console) appendNil() {
-	c.buffer.AppendString("null\n")
-}
-
-func (c *console) appendError(field zapcore.Field) bool {
+func (c *YamlEncoder) AppendError(field zapcore.Field) bool {
 	if field.Type == zapcore.ErrorType {
 		c.addKey(field.Key)
 
@@ -509,7 +487,36 @@ func (c *console) appendError(field zapcore.Field) bool {
 	return false
 }
 
-func (c *console) appendComplex128(value complex128) {
+func (c *YamlEncoder) indentation() string {
+	var res string
+	for i := 0; i < c.nested; i++ {
+		res += "  "
+	}
+	return res
+}
+
+func (c *YamlEncoder) addComma() {
+	if c.array {
+		c.buffer.AppendString(c.indentation())
+		c.buffer.AppendString("  - ")
+	}
+}
+
+func (c *YamlEncoder) addKey(key string) {
+	if !c.ignoreFirstIndentation || c.element > 0 {
+		c.buffer.AppendString(c.indentation())
+		c.buffer.AppendString("    ")
+	}
+	c.buffer.AppendString(key)
+	c.buffer.AppendString(": ")
+	c.element++
+}
+
+func (c *YamlEncoder) appendNil() {
+	c.buffer.AppendString("null\n")
+}
+
+func (c *YamlEncoder) appendComplex128(value complex128) {
 	re, im := real(value), imag(value)
 	c.buffer.AppendString(strconv.FormatFloat(re, 'g', -1, 64))
 	if im >= 0 {
@@ -519,7 +526,7 @@ func (c *console) appendComplex128(value complex128) {
 	c.buffer.AppendByte('\n')
 }
 
-func (c *console) appendReflectedSequence(v reflect.Value) error {
+func (c *YamlEncoder) appendReflectedSequence(v reflect.Value) error {
 	return c.AppendArray(zapcore.ArrayMarshalerFunc(func(enc zapcore.ArrayEncoder) error {
 		n := v.Len()
 		for i := 0; i < n; i++ {
@@ -531,7 +538,7 @@ func (c *console) appendReflectedSequence(v reflect.Value) error {
 	}))
 }
 
-func (c *console) appendReflectedMapping(v reflect.Value) error {
+func (c *YamlEncoder) appendReflectedMapping(v reflect.Value) error {
 	return c.AppendObject(zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		iter := v.MapRange()
 		for iter.Next() {
@@ -543,7 +550,7 @@ func (c *console) appendReflectedMapping(v reflect.Value) error {
 	}))
 }
 
-func (c *console) appendReflectedStruct(v reflect.Value) error {
+func (c *YamlEncoder) appendReflectedStruct(v reflect.Value) error {
 	return c.AppendObject(zapcore.ObjectMarshalerFunc(func(enc zapcore.ObjectEncoder) error {
 		t := v.Type()
 		n := t.NumField()
@@ -560,7 +567,7 @@ func (c *console) appendReflectedStruct(v reflect.Value) error {
 	}))
 }
 
-func appendString(buffer *buffer.Buffer, value string, indentation string) {
+func appendString(buffer *buffer.Buffer, value, indentation string) {
 	if strings.Contains(value, "\n") {
 		buffer.AppendString("\n")
 		buffer.AppendString(indentation)
