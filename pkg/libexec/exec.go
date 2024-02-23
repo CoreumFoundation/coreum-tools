@@ -62,7 +62,7 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 			spawn("ctx", parallel.Exit, func(ctx context.Context) error {
 				<-ctx.Done()
 				_ = cmd.Process.Signal(syscall.SIGTERM)
-				return ctx.Err()
+				return nil
 			})
 			return nil
 		})
