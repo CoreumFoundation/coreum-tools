@@ -143,7 +143,7 @@ func (g *Group) Spawn(name string, onExit OnExit, task Task) {
 func (g *Group) runTask(ctx context.Context, name string, id int64, onExit OnExit, task Task) {
 	err := runTaskWithRecovery(ctx, g.log, name, id, onExit, task)
 	if err != nil {
-		g.log.Error(
+		g.log.Debug(
 			ctx,
 			"Task finished with error",
 			zap.String("name", name),
