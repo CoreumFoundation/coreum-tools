@@ -4,11 +4,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/CoreumFoundation/coreum-tools/pkg/logger"
+	"github.com/CoreumFoundation/coreum-tools/pkg/must"
+	"github.com/CoreumFoundation/coreum-tools/pkg/run"
 )
 
 const maxStack = 100
@@ -19,13 +25,19 @@ type CommandFunc func(ctx context.Context, deps DepsFunc) error
 // DepsFunc represents function for executing dependencies
 type DepsFunc func(deps ...CommandFunc)
 
+// Command defines the command.
+type Command struct {
+	Description string
+	Fn          CommandFunc
+}
+
 // NewExecutor returns new executor
-func NewExecutor(commands map[string]CommandFunc) Executor {
+func NewExecutor(commands map[string]Command) Executor {
 	return Executor{commands: commands}
 }
 
 type Executor struct {
-	commands map[string]CommandFunc
+	commands map[string]Command
 }
 
 func (e Executor) Paths() []string {
@@ -115,10 +127,10 @@ func (e Executor) Execute(ctx context.Context, paths []string) error {
 
 	initDeps := make([]CommandFunc, 0, len(paths))
 	for _, p := range paths {
-		if e.commands[p] == nil {
+		if _, exists := e.commands[p]; !exists {
 			return errors.Errorf("build: command %s does not exist", p)
 		}
-		initDeps = append(initDeps, e.commands[p])
+		initDeps = append(initDeps, e.commands[p].Fn)
 	}
 	func() {
 		defer func() {
@@ -137,36 +149,55 @@ func (e Executor) Execute(ctx context.Context, paths []string) error {
 	return nil
 }
 
-const help = `Crust tool is used to build and run all the applications needed for development and testing on Coreum blockchain
+// Main receives configuration and runs commands
+func Main(commands map[string]Command) {
+	run.Tool("build", func(ctx context.Context) error {
+		var help bool
 
-Available commands:
-- setup Install all the tools required to develop our software
-- build	Builds all the required binaries
-- znet 	Tool used to spin up development environment running the same components which are used in production.
-- lint	Lints source code and checks that git status is clean
-- test  Runs unit tests
-- tidy 	Executes go mod tidy
-`
+		flags := logger.Flags(logger.ToolDefaultConfig, "build")
+		flags.BoolVarP(&help, "help", "h", false, "")
+		if err := flags.Parse(os.Args[1:]); err != nil {
+			return err
+		}
 
-// Autocomplete serves bash autocomplete functionality.
-// Returns true if autocomplete was requested and false otherwise.
-func Autocomplete(executor Executor) bool {
-	if prefix, ok := autocompletePrefix(os.Args[0], os.Getenv("COMP_LINE"), os.Getenv("COMP_POINT")); ok {
-		autocompleteDo(prefix, executor.Paths(), os.Getenv("COMP_TYPE"))
-		return true
-	}
-	return false
+		if help {
+			listCommands(commands)
+			return nil
+		}
+
+		executor := NewExecutor(commands)
+		if isAutocomplete() {
+			autocompleteDo(commands)
+			return nil
+		}
+
+		changeWorkingDir()
+		if len(flags.Args()) == 0 {
+			return errors.New("no commands to execute provided")
+		}
+		return execute(ctx, flags.Args(), executor)
+	})
 }
 
-// Do receives configuration and runs commands
-func Do(ctx context.Context, name string, paths []string, executor Executor) error {
-	if len(os.Args) == 1 {
-		if _, err := fmt.Fprint(os.Stderr, help, name); err != nil {
-			return errors.WithStack(err)
+func isAutocomplete() bool {
+	_, ok := autocompletePrefix()
+	return ok
+}
+
+func listCommands(commands map[string]Command) {
+	paths := paths(commands)
+	var maxLen int
+	for _, path := range paths {
+		if len(path) > maxLen {
+			maxLen = len(path)
 		}
-		return nil
 	}
-	return execute(ctx, paths, executor)
+	fmt.Println("\n Available commands:")
+	fmt.Println()
+	for _, path := range paths {
+		fmt.Printf(fmt.Sprintf(`   %%-%ds`, maxLen)+"  %s\n", path, commands[path].Description)
+	}
+	fmt.Println("")
 }
 
 func execute(ctx context.Context, paths []string, executor Executor) error {
@@ -180,7 +211,11 @@ func execute(ctx context.Context, paths []string, executor Executor) error {
 	return executor.Execute(ctx, pathsTrimmed)
 }
 
-func autocompletePrefix(exeName string, cLine, cPoint string) (string, bool) {
+func autocompletePrefix() (string, bool) {
+	exeName := os.Args[0]
+	cLine := os.Getenv("COMP_LINE")
+	cPoint := os.Getenv("COMP_POINT")
+
 	if cLine == "" || cPoint == "" {
 		return "", false
 	}
@@ -195,9 +230,10 @@ func autocompletePrefix(exeName string, cLine, cPoint string) (string, bool) {
 	return prefix[lastSpace:], true
 }
 
-func autocompleteDo(prefix string, paths []string, cType string) {
-	choices := choicesForPrefix(paths, prefix)
-	switch cType {
+func autocompleteDo(commands map[string]Command) {
+	prefix, _ := autocompletePrefix()
+	choices := choicesForPrefix(paths(commands), prefix)
+	switch os.Getenv("COMP_TYPE") {
 	case "9":
 		startPos := strings.LastIndex(prefix, "/") + 1
 		prefix = prefix[:startPos]
@@ -223,6 +259,15 @@ func autocompleteDo(prefix string, paths []string, cType string) {
 			}
 		}
 	}
+}
+
+func paths(commands map[string]Command) []string {
+	paths := make([]string, 0, len(commands))
+	for path := range commands {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
 }
 
 func choicesForPrefix(paths []string, prefix string) map[string]bool {
@@ -267,4 +312,8 @@ func longestPrefix(choices map[string]bool) string {
 		prefix += string(ch)
 	}
 	return prefix
+}
+
+func changeWorkingDir() {
+	must.OK(os.Chdir(filepath.Dir(filepath.Dir(filepath.Dir(must.String(filepath.EvalSymlinks(must.String(os.Executable()))))))))
 }
