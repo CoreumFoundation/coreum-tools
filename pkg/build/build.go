@@ -193,11 +193,9 @@ func listCommands(commands map[string]Command) {
 		}
 	}
 	fmt.Println("\n Available commands:")
-	fmt.Println()
 	for _, path := range paths {
 		fmt.Printf(fmt.Sprintf(`   %%-%ds`, maxLen)+"  %s\n", path, commands[path].Description)
 	}
-	fmt.Println("")
 }
 
 func execute(ctx context.Context, paths []string, executor Executor) error {
