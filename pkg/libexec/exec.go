@@ -42,7 +42,19 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 			cmd.Stdin = bytes.NewReader(nil)
 		}
 
-		logger.Get(ctx).Info("Executing command", zap.Stringer("command", cmd))
+		// add command + args
+		zapFields := []zap.Field{zap.Stringer("command", cmd)}
+		if cmd.Path != "" {
+			zapFields = append(zapFields, zap.String("path", cmd.Path))
+		}
+		if len(cmd.Env) > 0 {
+			zapFields = append(zapFields, zap.Strings("envs", cmd.Env))
+		}
+		if cmd.Dir != "" {
+			zapFields = append(zapFields, zap.String("dir", cmd.Dir))
+		}
+
+		logger.Get(ctx).Info("Executing command", zapFields...)
 
 		if err := cmd.Start(); err != nil {
 			return errors.WithStack(err)
