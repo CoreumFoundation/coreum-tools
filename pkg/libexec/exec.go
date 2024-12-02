@@ -42,7 +42,7 @@ func Exec(ctx context.Context, cmds ...*exec.Cmd) error {
 			cmd.Stdin = bytes.NewReader(nil)
 		}
 
-		logger.Get(ctx).Debug("Executing command", zap.Stringer("command", cmd))
+		logger.Get(ctx).Info("Executing command", zap.Stringer("command", cmd))
 
 		if err := cmd.Start(); err != nil {
 			return errors.WithStack(err)
