@@ -204,7 +204,7 @@ func TestRunSubtaskErrorWithCustomLogger(t *testing.T) {
 }
 
 func TestRunSubtaskInitError(t *testing.T) {
-	ctx := logger.WithLogger(context.Background(), logger.New(logger.ToolDefaultConfig))
+	ctx := logger.WithLogger(t.Context(), logger.New(logger.ToolDefaultConfig))
 	seq := make(chan int)
 	step1 := make(chan struct{})
 	step2 := make(chan struct{})
